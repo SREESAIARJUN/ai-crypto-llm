@@ -270,6 +270,18 @@ backend:
           agent: "testing"
           comment: "Live Chart Update endpoint (/api/trades/chart-data/live) is working correctly. Successfully verified it returns latest price, portfolio, and sentiment data. Real-time updates were confirmed by making sequential requests and observing timestamp changes."
 
+  - task: "Settings Functionality"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Settings functionality is working correctly. GET /api/settings returns the current trading settings with all required fields. PUT /api/settings successfully updates settings values and persists them in the database. POST /api/settings/reset successfully resets all settings to their default values. All settings fields (initial_portfolio_value, auto_trading_interval_minutes, price_history_limit, portfolio_snapshots_limit, sentiment_history_limit, frontend_refresh_interval_seconds, risk_threshold, confidence_threshold, max_trades_per_day, stop_loss_percentage, take_profit_percentage) are properly stored and retrieved."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
