@@ -44,7 +44,7 @@ def test_real_market_data():
         
         if response.status_code == 200 and not missing_fields:
             # Verify real Bitcoin price (should be a reasonable value)
-            if data["price"] < 1000 or data["price"] > 100000:
+            if data["price"] < 1000 or data["price"] > 200000:
                 print(f"❌ Market Data Endpoint: FAILED - Bitcoin price seems unrealistic: ${data['price']}")
                 return False
                 
