@@ -155,6 +155,46 @@ const TradingDashboard = () => {
     }
   };
 
+  // Fetch settings
+  const fetchSettings = async () => {
+    try {
+      const response = await axios.get(`${API}/settings`);
+      setSettings(response.data);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  // Update settings
+  const updateSettings = async (newSettings) => {
+    setSettingsLoading(true);
+    try {
+      const response = await axios.put(`${API}/settings`, newSettings);
+      setSettings(response.data);
+      showNotification('Settings updated successfully!', 'success');
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      showNotification('Error updating settings: ' + error.message, 'error');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  // Reset settings
+  const resetSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const response = await axios.post(`${API}/settings/reset`);
+      setSettings(response.data.settings);
+      showNotification('Settings reset to defaults!', 'success');
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+      showNotification('Error resetting settings: ' + error.message, 'error');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   // Change chart timeframe
   const handleTimeframeChange = (newTimeframe) => {
     setChartTimeframe(newTimeframe);
