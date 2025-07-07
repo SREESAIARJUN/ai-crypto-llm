@@ -649,7 +649,14 @@ async def auto_trade_scheduler():
             await db.trades.insert_one(trade_result.dict())
             
             logging.info("✅ Auto-trading: Trade decision completed")
-            await asyncio.sleep(300)  # Wait 5 minutes between trades
+            
+            # Use configurable interval from settings
+            if trading_settings:
+                sleep_duration = trading_settings.auto_trading_interval_minutes * 60
+            else:
+                sleep_duration = 300  # 5 minutes default
+                
+            await asyncio.sleep(sleep_duration)
         except Exception as e:
             logging.error(f"Auto-trade error: {str(e)}")
             await asyncio.sleep(60)  # Wait 1 minute before retrying
