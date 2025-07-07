@@ -233,7 +233,7 @@ Only respond with valid JSON."""
         api_key=OPENAI_API_KEY,
         session_id=f"crypto-verification-{uuid.uuid4()}",
         system_message=system_message
-    ).with_model("openai", "gpt-4.1")
+    ).with_model("openai", "gpt-4-turbo")
 
 # Real-world data fetching functions
 async def get_bitcoin_price():
