@@ -432,8 +432,10 @@ async def get_real_market_data():
         )
         price_history.append(price_point)
         
-        # Keep only last 100 price points to prevent memory issues
-        if len(price_history) > 100:
+        # Keep only configured number of price points
+        if trading_settings and len(price_history) > trading_settings.price_history_limit:
+            price_history = price_history[-trading_settings.price_history_limit:]
+        elif not trading_settings and len(price_history) > 100:  # fallback
             price_history = price_history[-100:]
         
         # Store sentiment history
@@ -446,8 +448,10 @@ async def get_real_market_data():
         }
         sentiment_history.append(sentiment_point)
         
-        # Keep only last 50 sentiment points
-        if len(sentiment_history) > 50:
+        # Keep only configured number of sentiment points
+        if trading_settings and len(sentiment_history) > trading_settings.sentiment_history_limit:
+            sentiment_history = sentiment_history[-trading_settings.sentiment_history_limit:]
+        elif not trading_settings and len(sentiment_history) > 50:  # fallback
             sentiment_history = sentiment_history[-50:]
         
         return MarketData(
