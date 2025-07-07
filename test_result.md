@@ -312,6 +312,8 @@ test_plan:
     - "Auto-trading Controls"
     - "Chart Data Endpoint"
     - "Live Chart Update Endpoint"
+    - "Settings Functionality"
+    - "Chart Timeframe Fix Investigation"
     - "Live Trades Chart Implementation"
     - "Settings Functionality"
   stuck_tasks: 
