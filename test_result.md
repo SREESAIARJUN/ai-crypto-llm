@@ -112,6 +112,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "API Health Check endpoint (/api/) is working correctly. Returns status 200 with the expected message."
+        - working: true
+          agent: "testing"
+          comment: "API Health Check endpoint (/api/) is still working correctly. Returns status 200 with the message 'Crypto Trading Agent API with Real-time Data'."
 
   - task: "Market Data Endpoint"
     implemented: true
@@ -124,6 +127,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Market Data endpoint (/api/market/data) is working correctly. Returns mock market data with price, volume, RSI, news, tweets, and timestamp."
+        - working: true
+          agent: "testing"
+          comment: "Enhanced Market Data endpoint (/api/market/data) is working correctly. Now returns real Bitcoin price from CoinGecko (currently around $107,862), news from CoinDesk RSS, and includes news_sentiment and twitter_sentiment fields. The sentiment analysis is working properly."
 
   - task: "Portfolio Status"
     implemented: true
@@ -136,6 +142,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Portfolio Status endpoint (/api/portfolio) is working correctly. Returns current portfolio with USD balance, BTC amount, and last trade price."
+        - working: true
+          agent: "testing"
+          comment: "Portfolio Status endpoint (/api/portfolio) is still working correctly. Returns current portfolio with USD balance, BTC amount, and last trade price."
 
   - task: "Metrics Endpoint"
     implemented: true
@@ -148,6 +157,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Metrics endpoint (/api/metrics) is working correctly. Returns trading metrics including total trades, successful trades, profit/loss, and accuracy percentage."
+        - working: true
+          agent: "testing"
+          comment: "Enhanced Metrics endpoint (/api/metrics) is working correctly. Returns trading metrics including total trades, successful trades, profit/loss, accuracy percentage, and now includes auto_trading_enabled status."
 
   - task: "Trade Trigger"
     implemented: true
@@ -160,6 +172,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Trade Trigger endpoint (/api/trade/trigger) is working correctly. Successfully integrates with OpenAI API, generates trade decisions with Chain of Thought reasoning, and stores the trade in the database."
+        - working: true
+          agent: "testing"
+          comment: "Enhanced Trade Trigger endpoint (/api/trade/trigger) is working correctly. Successfully integrates with OpenAI API, generates trade decisions with Chain of Thought reasoning, and now includes news_sentiment and twitter_sentiment fields in the response. The sentiment analysis is properly integrated into the trading decision process."
 
   - task: "Live Trade"
     implemented: true
@@ -172,6 +187,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Live Trade endpoint (/api/trade/live) is working correctly. Returns the most recent trade with all required fields."
+        - working: true
+          agent: "testing"
+          comment: "Enhanced Live Trade endpoint (/api/trade/live) is working correctly. Returns the most recent trade with all required fields including the new news_sentiment and twitter_sentiment fields."
 
   - task: "Trade History"
     implemented: true
@@ -184,11 +202,26 @@ backend:
         - working: true
           agent: "testing"
           comment: "Trade History endpoint (/api/trade/history) is working correctly. Returns a list of past trades in reverse chronological order."
+        - working: true
+          agent: "testing"
+          comment: "Enhanced Trade History endpoint (/api/trade/history) is working correctly. Returns a list of past trades in reverse chronological order, with each trade now including news_sentiment and twitter_sentiment fields."
+
+  - task: "Auto-trading Controls"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Auto-trading Controls are working correctly. The /api/trade/auto/enable endpoint successfully enables automatic trading, /api/trade/auto/disable successfully disables it, and /api/trade/auto/status correctly reports the current status."
 
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
@@ -200,6 +233,7 @@ test_plan:
     - "Trade Trigger"
     - "Live Trade"
     - "Trade History"
+    - "Auto-trading Controls"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
@@ -207,3 +241,5 @@ test_plan:
 agent_communication:
     - agent: "testing"
       message: "Completed comprehensive testing of all backend API endpoints. Created backend_test.py to test all required endpoints. All tests passed successfully. The backend is working correctly with proper LLM integration and JSON parsing. The OpenAI API integration is working well, generating structured trade decisions with Chain of Thought reasoning."
+    - agent: "testing"
+      message: "Completed comprehensive testing of the enhanced crypto trading agent backend. All tests passed successfully. The real-world data integration is working correctly, fetching Bitcoin price from CoinGecko, news from CoinDesk RSS, and including sentiment analysis. The auto-trading controls are functioning properly, allowing users to enable/disable automatic trading. The enhanced trade pipeline now includes sentiment analysis, and all trade results include news_sentiment and twitter_sentiment fields. The live data updates are working correctly, providing real Bitcoin price, volume, RSI, and sentiment data."
