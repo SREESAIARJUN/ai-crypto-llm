@@ -1012,6 +1012,36 @@ async def get_live_chart_update():
         logging.error(f"Error getting live chart update: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/settings")
+async def get_settings():
+    """Get current trading settings"""
+    try:
+        settings = await get_trading_settings()
+        return settings
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.put("/settings")
+async def update_settings(settings: TradingSettings):
+    """Update trading settings"""
+    try:
+        updated_settings = await update_trading_settings(settings)
+        await apply_settings_to_system()
+        return updated_settings
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/settings/reset")
+async def reset_settings():
+    """Reset settings to default values"""
+    try:
+        default_settings = TradingSettings()
+        updated_settings = await update_trading_settings(default_settings)
+        await apply_settings_to_system()
+        return {"message": "Settings reset to defaults", "settings": updated_settings}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
