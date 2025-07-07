@@ -312,6 +312,197 @@ def test_trade_history():
         print(f"❌ Trade History Endpoint: ERROR - {str(e)}")
         return False
 
+def test_chart_data():
+    """Test 9: Chart Data Endpoint - GET /api/trades/chart-data"""
+    print("\n🔍 Testing Chart Data Endpoint...")
+    
+    # Test with different timeframes
+    timeframes = ["1h", "24h", "7d"]
+    results = {}
+    
+    for timeframe in timeframes:
+        print(f"\n🔍 Testing Chart Data with timeframe: {timeframe}")
+        try:
+            response = requests.get(f"{BACKEND_URL}/trades/chart-data?timeframe={timeframe}")
+            print(f"Status Code: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Check required fields
+                required_fields = ["price_history", "trade_markers", "portfolio_history", "sentiment_timeline", "timeframe", "last_updated"]
+                missing_fields = [field for field in required_fields if field not in data]
+                
+                if not missing_fields:
+                    # Verify timeframe matches request
+                    if data["timeframe"] != timeframe:
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - Timeframe mismatch: {data['timeframe']}")
+                        results[timeframe] = False
+                        continue
+                    
+                    # Verify data structures
+                    if not isinstance(data["price_history"], list):
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - price_history is not a list")
+                        results[timeframe] = False
+                        continue
+                        
+                    if not isinstance(data["trade_markers"], list):
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - trade_markers is not a list")
+                        results[timeframe] = False
+                        continue
+                        
+                    if not isinstance(data["portfolio_history"], list):
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - portfolio_history is not a list")
+                        results[timeframe] = False
+                        continue
+                        
+                    if not isinstance(data["sentiment_timeline"], list):
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - sentiment_timeline is not a list")
+                        results[timeframe] = False
+                        continue
+                    
+                    # Print summary of data
+                    print(f"   - Price history points: {len(data['price_history'])}")
+                    print(f"   - Trade markers: {len(data['trade_markers'])}")
+                    print(f"   - Portfolio history points: {len(data['portfolio_history'])}")
+                    print(f"   - Sentiment timeline points: {len(data['sentiment_timeline'])}")
+                    
+                    # Check if we have at least some data (or fallback data)
+                    if len(data["price_history"]) == 0:
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - No price history data")
+                        results[timeframe] = False
+                        continue
+                        
+                    if len(data["portfolio_history"]) == 0:
+                        print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - No portfolio history data")
+                        results[timeframe] = False
+                        continue
+                    
+                    # Check a sample price point if available
+                    if data["price_history"]:
+                        sample_price = data["price_history"][0]
+                        price_fields = ["timestamp", "price", "volume", "rsi"]
+                        missing_price_fields = [field for field in price_fields if field not in sample_price]
+                        
+                        if missing_price_fields:
+                            print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - Price point missing fields: {missing_price_fields}")
+                            results[timeframe] = False
+                            continue
+                    
+                    print(f"✅ Chart Data Endpoint ({timeframe}): SUCCESS")
+                    results[timeframe] = True
+                else:
+                    print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - Missing fields: {missing_fields}")
+                    results[timeframe] = False
+            else:
+                print(f"❌ Chart Data Endpoint ({timeframe}): FAILED - Status code: {response.status_code}")
+                print(f"Response: {response.text}")
+                results[timeframe] = False
+        except Exception as e:
+            print(f"❌ Chart Data Endpoint ({timeframe}): ERROR - {str(e)}")
+            results[timeframe] = False
+    
+    # Overall result is True only if all timeframes passed
+    overall_result = all(results.values())
+    if overall_result:
+        print("\n✅ Chart Data Endpoint: SUCCESS for all timeframes")
+    else:
+        print("\n❌ Chart Data Endpoint: FAILED for some timeframes")
+    
+    return overall_result
+
+def test_live_chart_update():
+    """Test 10: Live Chart Update Endpoint - GET /api/trades/chart-data/live"""
+    print("\n🔍 Testing Live Chart Update Endpoint...")
+    try:
+        response = requests.get(f"{BACKEND_URL}/trades/chart-data/live")
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Check required fields
+            required_fields = ["latest_price", "current_portfolio", "latest_sentiment", "timestamp"]
+            missing_fields = [field for field in required_fields if field not in data]
+            
+            if not missing_fields:
+                # Verify data structures
+                if not isinstance(data["latest_price"], dict):
+                    print("❌ Live Chart Update Endpoint: FAILED - latest_price is not a dictionary")
+                    return False
+                
+                if not isinstance(data["current_portfolio"], dict):
+                    print("❌ Live Chart Update Endpoint: FAILED - current_portfolio is not a dictionary")
+                    return False
+                
+                if not isinstance(data["latest_sentiment"], dict):
+                    print("❌ Live Chart Update Endpoint: FAILED - latest_sentiment is not a dictionary")
+                    return False
+                
+                # Check latest price fields
+                price_fields = ["timestamp", "price", "volume", "rsi"]
+                missing_price_fields = [field for field in price_fields if field not in data["latest_price"]]
+                
+                if missing_price_fields:
+                    print(f"❌ Live Chart Update Endpoint: FAILED - Latest price missing fields: {missing_price_fields}")
+                    return False
+                
+                # Check portfolio fields
+                portfolio_fields = ["timestamp", "total_value", "usd_balance", "btc_amount", "btc_value"]
+                missing_portfolio_fields = [field for field in portfolio_fields if field not in data["current_portfolio"]]
+                
+                if missing_portfolio_fields:
+                    print(f"❌ Live Chart Update Endpoint: FAILED - Portfolio missing fields: {missing_portfolio_fields}")
+                    return False
+                
+                # Check sentiment fields
+                sentiment_fields = ["timestamp", "news_sentiment", "twitter_sentiment"]
+                missing_sentiment_fields = [field for field in sentiment_fields if field not in data["latest_sentiment"]]
+                
+                if missing_sentiment_fields:
+                    print(f"❌ Live Chart Update Endpoint: FAILED - Sentiment missing fields: {missing_sentiment_fields}")
+                    return False
+                
+                # Print summary of data
+                print(f"   - Latest price: ${data['latest_price']['price']:,.2f}")
+                print(f"   - Portfolio total value: ${data['current_portfolio']['total_value']:,.2f}")
+                print(f"   - News sentiment: {data['latest_sentiment']['news_sentiment']}")
+                print(f"   - Twitter sentiment: {data['latest_sentiment']['twitter_sentiment']}")
+                
+                # Test real-time updates by making a second request
+                print("\n🔍 Testing real-time updates...")
+                time.sleep(2)  # Wait a bit for potential data changes
+                
+                second_response = requests.get(f"{BACKEND_URL}/trades/chart-data/live")
+                if second_response.status_code == 200:
+                    second_data = second_response.json()
+                    
+                    # Check if timestamps are different (indicating real-time updates)
+                    if "timestamp" in second_data and "timestamp" in data:
+                        first_timestamp = data["timestamp"]
+                        second_timestamp = second_data["timestamp"]
+                        
+                        if first_timestamp != second_timestamp:
+                            print("✅ Real-time updates confirmed: Timestamps differ between requests")
+                        else:
+                            print("ℹ️ Note: Timestamps identical between requests (may be expected if no updates occurred)")
+                    
+                    print("✅ Live Chart Update Endpoint: SUCCESS")
+                    return True
+                else:
+                    print(f"❌ Live Chart Update Endpoint: FAILED on second request - Status code: {second_response.status_code}")
+                    return False
+            else:
+                print(f"❌ Live Chart Update Endpoint: FAILED - Missing fields: {missing_fields}")
+                return False
+        else:
+            print(f"❌ Live Chart Update Endpoint: FAILED - Status code: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Live Chart Update Endpoint: ERROR - {str(e)}")
+        return False
+
 def run_all_tests():
     print_separator()
     print("🚀 STARTING ENHANCED CRYPTO TRADING AGENT BACKEND TESTS")
@@ -331,6 +522,8 @@ def run_all_tests():
     results["Auto-trading Controls"] = test_auto_trading_controls()
     results["Live Trade"] = test_live_trade()
     results["Trade History"] = test_trade_history()
+    results["Chart Data"] = test_chart_data()
+    results["Live Chart Update"] = test_live_chart_update()
     
     # Print summary
     print_separator()
