@@ -40,6 +40,9 @@ const TradingDashboard = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [autoTradingEnabled, setAutoTradingEnabled] = useState(false);
   const [autoTradingLoading, setAutoTradingLoading] = useState(false);
+  const [chartData, setChartData] = useState(null);
+  const [chartTimeframe, setChartTimeframe] = useState('1h');
+  const [chartLoading, setChartLoading] = useState(false);
 
   // Fetch auto-trading status
   const fetchAutoTradingStatus = async () => {
