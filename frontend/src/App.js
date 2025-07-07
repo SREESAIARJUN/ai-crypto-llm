@@ -185,7 +185,8 @@ const TradingDashboard = () => {
         fetchMetrics(),
         fetchMarketData(),
         fetchPortfolio(),
-        fetchAutoTradingStatus()
+        fetchAutoTradingStatus(),
+        fetchChartData()
       ]);
     };
 
