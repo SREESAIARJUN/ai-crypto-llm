@@ -254,6 +254,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Chart Data endpoint (/api/trades/chart-data) is working correctly. Successfully tested with all timeframes (1h, 24h, 7d) and verified it returns price_history, trade_markers, portfolio_history, and sentiment_timeline. The endpoint also handles the case when no data exists by providing fallback data."
+        - working: true
+          agent: "testing"
+          comment: "Chart Data endpoint (/api/trades/chart-data) was retested with specific focus on timeframe filtering. The endpoint correctly applies filtering logic based on the timeframe parameter (1h, 24h, 7d). All data points returned are after the respective cutoff time. In our test environment with limited historical data, all timeframes return the same data because all data falls within the 1-hour timeframe. In a real scenario with more historical data, different timeframes would return different data. The filtering logic in lines 758-766 of server.py is working correctly."
 
   - task: "Live Chart Update Endpoint"
     implemented: true
