@@ -684,6 +684,187 @@ async def get_portfolio_status():
         "last_trade_price": last_trade_price
     }
 
+@api_router.get("/trades/chart-data")
+async def get_chart_data(timeframe: str = "1h"):
+    """Get formatted data for live trades chart"""
+    try:
+        # Get trade markers from database
+        trades = await db.trades.find().sort("timestamp", -1).limit(50).to_list(50)
+        trade_markers = []
+        
+        for trade in trades:
+            marker = TradeMarker(
+                timestamp=trade["timestamp"],
+                price=trade["price"],
+                decision=trade["decision"],
+                confidence=trade["confidence"],
+                profit_loss=trade.get("profit_loss", 0.0),
+                news_sentiment=trade.get("news_sentiment"),
+                twitter_sentiment=trade.get("twitter_sentiment")
+            )
+            trade_markers.append(marker)
+        
+        # Sort trade markers by timestamp
+        trade_markers.sort(key=lambda x: x.timestamp)
+        
+        # Filter data based on timeframe
+        now = datetime.utcnow()
+        if timeframe == "1h":
+            cutoff_time = now - timedelta(hours=1)
+        elif timeframe == "24h":
+            cutoff_time = now - timedelta(hours=24)
+        elif timeframe == "7d":
+            cutoff_time = now - timedelta(days=7)
+        else:
+            cutoff_time = now - timedelta(hours=1)
+        
+        # Filter price history
+        filtered_price_history = [
+            point for point in price_history 
+            if point.timestamp >= cutoff_time
+        ]
+        
+        # Filter portfolio snapshots
+        filtered_portfolio = [
+            snapshot for snapshot in portfolio_snapshots 
+            if snapshot.timestamp >= cutoff_time
+        ]
+        
+        # Filter sentiment history
+        filtered_sentiment = [
+            point for point in sentiment_history 
+            if point["timestamp"] >= cutoff_time
+        ]
+        
+        # If no price history exists, create a current data point
+        if not filtered_price_history:
+            try:
+                current_price, volume, rsi = await get_bitcoin_price()
+                current_point = ChartDataPoint(
+                    timestamp=now,
+                    price=current_price,
+                    volume=volume,
+                    rsi=rsi
+                )
+                filtered_price_history = [current_point]
+            except Exception as e:
+                logging.error(f"Error getting current price for chart: {e}")
+                # Use fallback data
+                filtered_price_history = [
+                    ChartDataPoint(
+                        timestamp=now,
+                        price=45000.0,
+                        volume=1.0,
+                        rsi=50.0
+                    )
+                ]
+        
+        # If no portfolio snapshots exist, create current snapshot
+        if not filtered_portfolio:
+            try:
+                current_price = filtered_price_history[-1].price if filtered_price_history else 45000.0
+                btc_value = current_btc_amount * current_price
+                total_value = current_portfolio_value + btc_value
+                
+                current_snapshot = PortfolioSnapshot(
+                    timestamp=now,
+                    total_value=total_value,
+                    usd_balance=current_portfolio_value,
+                    btc_amount=current_btc_amount,
+                    btc_value=btc_value
+                )
+                filtered_portfolio = [current_snapshot]
+            except Exception as e:
+                logging.error(f"Error creating portfolio snapshot: {e}")
+                filtered_portfolio = []
+        
+        chart_data = ChartData(
+            price_history=filtered_price_history,
+            trade_markers=trade_markers,
+            portfolio_history=filtered_portfolio,
+            sentiment_timeline=filtered_sentiment,
+            timeframe=timeframe
+        )
+        
+        return chart_data
+        
+    except Exception as e:
+        logging.error(f"Error getting chart data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/trades/chart-data/live")
+async def get_live_chart_update():
+    """Get real-time chart data update"""
+    try:
+        # Get current market data
+        market_data = await get_real_market_data()
+        
+        # Get latest trade if exists
+        latest_trade = await db.trades.find().sort("timestamp", -1).limit(1).to_list(1)
+        latest_trade_marker = None
+        
+        if latest_trade:
+            trade = latest_trade[0]
+            latest_trade_marker = TradeMarker(
+                timestamp=trade["timestamp"],
+                price=trade["price"],
+                decision=trade["decision"],
+                confidence=trade["confidence"],
+                profit_loss=trade.get("profit_loss", 0.0),
+                news_sentiment=trade.get("news_sentiment"),
+                twitter_sentiment=trade.get("twitter_sentiment")
+            )
+        
+        # Get current portfolio value
+        current_price = market_data.price
+        btc_value = current_btc_amount * current_price
+        total_value = current_portfolio_value + btc_value
+        
+        current_portfolio_snapshot = PortfolioSnapshot(
+            timestamp=datetime.utcnow(),
+            total_value=total_value,
+            usd_balance=current_portfolio_value,
+            btc_amount=current_btc_amount,
+            btc_value=btc_value
+        )
+        
+        # Get latest price point
+        latest_price_point = None
+        if price_history:
+            latest_price_point = price_history[-1]
+        else:
+            latest_price_point = ChartDataPoint(
+                timestamp=datetime.utcnow(),
+                price=current_price,
+                volume=market_data.volume,
+                rsi=market_data.rsi
+            )
+        
+        # Get latest sentiment
+        latest_sentiment = None
+        if sentiment_history:
+            latest_sentiment = sentiment_history[-1]
+        else:
+            latest_sentiment = {
+                "timestamp": datetime.utcnow(),
+                "news_sentiment": market_data.news_sentiment,
+                "twitter_sentiment": market_data.twitter_sentiment,
+                "news_items": market_data.news[:3],
+                "tweets": market_data.tweets[:3] if isinstance(market_data.tweets, list) else []
+            }
+        
+        return {
+            "latest_price": latest_price_point,
+            "latest_trade": latest_trade_marker,
+            "current_portfolio": current_portfolio_snapshot,
+            "latest_sentiment": latest_sentiment,
+            "timestamp": datetime.utcnow()
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting live chart update: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
