@@ -137,11 +137,12 @@ class TradingSettings(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 # Global variables for trading state
-current_portfolio_value = 1000.0  # Starting with $1000 USDT
+current_portfolio_value = 1000.0  # Starting with $1000 USDT - Will be loaded from settings
 current_btc_amount = 0.0
 last_trade_price = 0.0
 auto_trading_enabled = False
 auto_trading_task = None
+trading_settings = None  # Will be loaded from database
 
 # Store historical data for charts
 price_history = []
