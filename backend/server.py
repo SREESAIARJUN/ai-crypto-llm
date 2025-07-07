@@ -337,6 +337,76 @@ def analyze_news_sentiment(news_items):
         logging.error(f"Error analyzing news sentiment: {e}")
         return "Neutral"
 
+async def get_trading_settings():
+    """Get current trading settings from database"""
+    global trading_settings
+    
+    try:
+        # Try to get existing settings from database
+        settings_doc = await db.settings.find_one({})
+        
+        if settings_doc:
+            trading_settings = TradingSettings(**settings_doc)
+            logging.info("Loaded trading settings from database")
+        else:
+            # Create default settings
+            trading_settings = TradingSettings()
+            await db.settings.insert_one(trading_settings.dict())
+            logging.info("Created default trading settings")
+        
+        return trading_settings
+        
+    except Exception as e:
+        logging.error(f"Error getting trading settings: {e}")
+        # Return default settings if database error
+        trading_settings = TradingSettings()
+        return trading_settings
+
+async def update_trading_settings(new_settings: TradingSettings):
+    """Update trading settings in database"""
+    global trading_settings, current_portfolio_value
+    
+    try:
+        new_settings.updated_at = datetime.utcnow()
+        
+        # Update database
+        await db.settings.update_one(
+            {},
+            {"$set": new_settings.dict()},
+            upsert=True
+        )
+        
+        # Update global variables
+        trading_settings = new_settings
+        
+        # Update portfolio value if it's the initial value
+        if current_portfolio_value == 1000.0:  # Only update if it's still the default
+            current_portfolio_value = new_settings.initial_portfolio_value
+            
+        logging.info("Updated trading settings successfully")
+        return trading_settings
+        
+    except Exception as e:
+        logging.error(f"Error updating trading settings: {e}")
+        raise e
+
+async def apply_settings_to_system():
+    """Apply current settings to system variables"""
+    global current_portfolio_value, price_history, portfolio_snapshots, sentiment_history
+    
+    if not trading_settings:
+        await get_trading_settings()
+    
+    # Apply history limits
+    if len(price_history) > trading_settings.price_history_limit:
+        price_history = price_history[-trading_settings.price_history_limit:]
+    
+    if len(portfolio_snapshots) > trading_settings.portfolio_snapshots_limit:
+        portfolio_snapshots = portfolio_snapshots[-trading_settings.portfolio_snapshots_limit:]
+    
+    if len(sentiment_history) > trading_settings.sentiment_history_limit:
+        sentiment_history = sentiment_history[-trading_settings.sentiment_history_limit:]
+
 async def get_real_market_data():
     """Get real-time market data from multiple sources"""
     global price_history, sentiment_history
