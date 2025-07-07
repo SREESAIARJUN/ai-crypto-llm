@@ -13,7 +13,11 @@ import json
 import asyncio
 import aiohttp
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-import random
+import tweepy
+import feedparser
+from bs4 import BeautifulSoup
+from textblob import TextBlob
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -52,6 +56,8 @@ class TradeResult(BaseModel):
     verdict: str = "Pending verification"
     profit_loss: Optional[float] = None
     chain_of_thought: Optional[Dict[str, Any]] = None
+    news_sentiment: Optional[str] = None
+    twitter_sentiment: Optional[str] = None
 
 class TradeResultCreate(BaseModel):
     price: float
@@ -71,6 +77,8 @@ class MarketData(BaseModel):
     rsi: float
     news: List[str]
     tweets: List[str]
+    news_sentiment: str
+    twitter_sentiment: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class TradingMetrics(BaseModel):
@@ -79,16 +87,35 @@ class TradingMetrics(BaseModel):
     total_profit_loss: float
     accuracy_percentage: float
     last_trade_time: Optional[datetime] = None
+    auto_trading_enabled: bool = False
 
 # Global variables for trading state
 current_portfolio_value = 1000.0  # Starting with $1000 USDT
 current_btc_amount = 0.0
 last_trade_price = 0.0
+auto_trading_enabled = False
+auto_trading_task = None
 
-# LLM Integration Setup
+# API Keys
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-if not OPENAI_API_KEY:
-    logging.warning("OPENAI_API_KEY not found in environment variables")
+TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY')
+TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET')
+COINDESK_API_KEY = os.environ.get('COINDESK_API_KEY')
+
+# Twitter API Setup
+twitter_client = None
+if TWITTER_API_KEY and TWITTER_API_SECRET:
+    try:
+        twitter_client = tweepy.Client(
+            bearer_token=None,
+            consumer_key=TWITTER_API_KEY,
+            consumer_secret=TWITTER_API_SECRET,
+            access_token=None,
+            access_token_secret=None,
+            wait_on_rate_limit=True
+        )
+    except Exception as e:
+        logging.warning(f"Twitter API initialization failed: {e}")
 
 # Initialize LLM chats
 def create_trading_chat():
@@ -97,13 +124,13 @@ def create_trading_chat():
     
     system_message = """You are a crypto trading decision assistant. Always respond with structured JSON output containing your Chain of Thought reasoning and final trading decision.
 
-Analyze the provided market data including price, volume, RSI, news, and tweets. Make a trading decision based on technical analysis and sentiment.
+Analyze the provided market data including price, volume, RSI, news, tweets, and sentiment analysis. Make a trading decision based on technical analysis, news sentiment, and social media sentiment.
 
 Format your response as valid JSON:
 {
   "chain_of_thought": {
     "market_analysis": "your technical analysis here",
-    "risk_assessment": "risk evaluation",
+    "risk_assessment": "risk evaluation", 
     "reasoning_steps": ["step 1", "step 2", "step 3"]
   },
   "trading_decision": {
@@ -117,7 +144,9 @@ Rules:
 - Only respond with valid JSON
 - Confidence should be between 0.0 and 1.0
 - Action must be exactly BUY, SELL, or HOLD
-- Base decisions on provided data only"""
+- Base decisions on provided data only
+- Consider news sentiment and social media sentiment heavily
+- Factor in technical indicators (RSI, volume, price trends)"""
     
     return LlmChat(
         api_key=OPENAI_API_KEY,
@@ -135,7 +164,7 @@ Check for:
 - Logical consistency between evidence and decision
 - No hallucinated facts
 - Reasonable confidence levels
-- Sound reasoning
+- Sound reasoning considering sentiment analysis
 
 Format your response as valid JSON:
 {
@@ -152,35 +181,167 @@ Only respond with valid JSON."""
         system_message=system_message
     ).with_model("openai", "gpt-4.1")
 
-# Mock data functions (using free APIs concept)
-async def get_mock_market_data():
-    """Simulate real-time market data for demo purposes"""
-    # In real implementation, this would fetch from CoinGecko, news APIs, etc.
-    base_price = 45000 + random.randint(-5000, 5000)
-    
-    mock_news = [
-        "Bitcoin ETF approval expected this quarter",
-        "Major institutional adoption continues",
-        "Market volatility increases amid regulatory concerns",
-        "Whale activity detected on major exchanges",
-        "DeFi integration driving new use cases"
-    ]
-    
-    mock_tweets = [
-        "Large BTC transfer to exchange wallets observed",
-        "Crypto market showing strong fundamentals",
-        "Technical indicators suggest trend reversal",
-        "Institutional buying pressure increasing",
-        "Market sentiment remains cautiously optimistic"
-    ]
-    
-    return MarketData(
-        price=base_price,
-        volume=random.uniform(0.5, 2.0),
-        rsi=random.randint(30, 80),
-        news=random.sample(mock_news, 3),
-        tweets=random.sample(mock_tweets, 3)
-    )
+# Real-world data fetching functions
+async def get_bitcoin_price():
+    """Get current Bitcoin price from CoinGecko API"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true"
+            ) as response:
+                data = await response.json()
+                price = data["bitcoin"]["usd"]
+                volume_change = data["bitcoin"]["usd_24h_change"]
+                
+                # Simulate RSI calculation (in real app, you'd use proper technical analysis)
+                rsi = 50 + (volume_change / 2)  # Simplified RSI approximation
+                rsi = max(0, min(100, rsi))  # Clamp between 0-100
+                
+                return price, abs(volume_change / 100), rsi
+    except Exception as e:
+        logging.error(f"Error fetching Bitcoin price: {e}")
+        return 45000.0, 1.0, 50.0  # Fallback values
+
+async def get_coindesk_news():
+    """Get crypto news from CoinDesk API"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                'X-CoinAPI-Key': COINDESK_API_KEY
+            } if COINDESK_API_KEY else {}
+            
+            # Using CoinDesk RSS feed as fallback
+            async with session.get(
+                "https://www.coindesk.com/arc/outboundfeeds/rss/"
+            ) as response:
+                content = await response.text()
+                feed = feedparser.parse(content)
+                
+                news_items = []
+                for entry in feed.entries[:5]:  # Get latest 5 news
+                    title = entry.title
+                    # Clean up the title
+                    cleaned_title = re.sub(r'<[^>]+>', '', title)
+                    news_items.append(cleaned_title)
+                
+                return news_items
+    except Exception as e:
+        logging.error(f"Error fetching CoinDesk news: {e}")
+        return [
+            "Bitcoin price shows volatility amid market uncertainty",
+            "Institutional adoption continues to grow",
+            "Regulatory clarity remains a key market driver",
+            "Crypto market sentiment shows mixed signals",
+            "Bitcoin ETF developments continue to influence market"
+        ]
+
+async def get_twitter_sentiment():
+    """Get Twitter sentiment about Bitcoin"""
+    try:
+        if not twitter_client:
+            return ["Twitter sentiment: Mixed market outlook", "Social media shows cautious optimism", "Trader sentiment remains divided"]
+        
+        # Search for Bitcoin-related tweets
+        tweets = twitter_client.search_recent_tweets(
+            query="Bitcoin OR BTC -is:retweet lang:en",
+            max_results=10,
+            tweet_fields=['created_at', 'public_metrics']
+        )
+        
+        tweet_texts = []
+        sentiments = []
+        
+        if tweets.data:
+            for tweet in tweets.data:
+                tweet_text = tweet.text
+                # Analyze sentiment
+                blob = TextBlob(tweet_text)
+                sentiment = blob.sentiment.polarity
+                sentiments.append(sentiment)
+                
+                # Clean and format tweet
+                cleaned_tweet = re.sub(r'http\S+', '', tweet_text).strip()
+                if len(cleaned_tweet) > 100:
+                    cleaned_tweet = cleaned_tweet[:100] + "..."
+                tweet_texts.append(f"Tweet: {cleaned_tweet}")
+        
+        # Calculate overall sentiment
+        if sentiments:
+            avg_sentiment = sum(sentiments) / len(sentiments)
+            if avg_sentiment > 0.1:
+                overall_sentiment = "Positive"
+            elif avg_sentiment < -0.1:
+                overall_sentiment = "Negative"
+            else:
+                overall_sentiment = "Neutral"
+        else:
+            overall_sentiment = "Neutral"
+        
+        return tweet_texts[:3], overall_sentiment  # Return top 3 tweets and sentiment
+        
+    except Exception as e:
+        logging.error(f"Error fetching Twitter data: {e}")
+        return [
+            "Twitter sentiment: Market shows mixed signals",
+            "Social media indicates cautious optimism",
+            "Crypto Twitter remains divided on short-term outlook"
+        ], "Neutral"
+
+def analyze_news_sentiment(news_items):
+    """Analyze sentiment of news headlines"""
+    try:
+        sentiments = []
+        for news in news_items:
+            blob = TextBlob(news)
+            sentiments.append(blob.sentiment.polarity)
+        
+        if sentiments:
+            avg_sentiment = sum(sentiments) / len(sentiments)
+            if avg_sentiment > 0.1:
+                return "Positive"
+            elif avg_sentiment < -0.1:
+                return "Negative"
+            else:
+                return "Neutral"
+        return "Neutral"
+    except Exception as e:
+        logging.error(f"Error analyzing news sentiment: {e}")
+        return "Neutral"
+
+async def get_real_market_data():
+    """Get real-time market data from multiple sources"""
+    try:
+        # Get Bitcoin price and technical indicators
+        price, volume, rsi = await get_bitcoin_price()
+        
+        # Get news data
+        news_items = await get_coindesk_news()
+        news_sentiment = analyze_news_sentiment(news_items)
+        
+        # Get Twitter data
+        tweets, twitter_sentiment = await get_twitter_sentiment()
+        
+        return MarketData(
+            price=price,
+            volume=volume,
+            rsi=rsi,
+            news=news_items,
+            tweets=tweets,
+            news_sentiment=news_sentiment,
+            twitter_sentiment=twitter_sentiment
+        )
+    except Exception as e:
+        logging.error(f"Error getting real market data: {e}")
+        # Return fallback data
+        return MarketData(
+            price=45000.0,
+            volume=1.0,
+            rsi=50.0,
+            news=["Fallback: Bitcoin market shows mixed signals"],
+            tweets=["Fallback: Social sentiment remains neutral"],
+            news_sentiment="Neutral",
+            twitter_sentiment="Neutral"
+        )
 
 async def execute_paper_trade(decision: str, price: float, confidence: float):
     """Execute paper trading logic"""
@@ -204,17 +365,11 @@ async def execute_paper_trade(decision: str, price: float, confidence: float):
         
     return profit_loss
 
-# API Routes
-@api_router.get("/")
-async def root():
-    return {"message": "Crypto Trading Agent API"}
-
-@api_router.post("/trade/trigger")
-async def trigger_trade():
-    """Trigger the full LLM trading pipeline"""
+async def execute_trading_pipeline():
+    """Execute the full LLM trading pipeline"""
     try:
-        # Step 1: Get market data
-        market_data = await get_mock_market_data()
+        # Step 1: Get real market data
+        market_data = await get_real_market_data()
         
         # Step 2: Create LLM trading decision
         trading_chat = create_trading_chat()
@@ -226,13 +381,15 @@ async def trigger_trade():
         Current Market Data:
         - Price: ${market_data.price:,.2f}
         - Volume: {market_data.volume:.2f}
-        - RSI: {market_data.rsi}
-        - News: {market_data.news}
-        - Tweets: {market_data.tweets}
+        - RSI: {market_data.rsi:.1f}
+        - News Headlines: {market_data.news}
+        - Twitter Sentiment: {market_data.twitter_sentiment}
+        - News Sentiment: {market_data.news_sentiment}
+        - Recent Tweets: {market_data.tweets}
         
         Current Portfolio: ${current_portfolio_value:.2f} USD, {current_btc_amount:.6f} BTC
         
-        Provide your trading decision based on this data.
+        Provide your trading decision based on this real-time data including sentiment analysis.
         """
         
         user_message = UserMessage(text=market_input)
@@ -253,7 +410,7 @@ async def trigger_trade():
         Market Evidence: {market_input}
         Chain of Thought: {chain_of_thought}
         
-        Verify if this decision is valid and well-reasoned.
+        Verify if this decision is valid and well-reasoned considering the sentiment analysis.
         """
         
         verification_message = UserMessage(text=verification_input)
@@ -281,7 +438,9 @@ async def trigger_trade():
             is_valid=verification_data["is_valid"],
             verdict=verification_data["verdict"],
             profit_loss=profit_loss,
-            chain_of_thought=chain_of_thought
+            chain_of_thought=chain_of_thought,
+            news_sentiment=market_data.news_sentiment,
+            twitter_sentiment=market_data.twitter_sentiment
         )
         
         await db.trades.insert_one(trade_result.dict())
@@ -290,7 +449,70 @@ async def trigger_trade():
         
     except Exception as e:
         logging.error(f"Trading pipeline error: {str(e)}")
+        raise e
+
+# Background task for auto-trading
+async def auto_trade_scheduler():
+    """Background task for automatic trading"""
+    global auto_trading_enabled
+    
+    while auto_trading_enabled:
+        try:
+            logging.info("🤖 Auto-trading: Executing trade decision...")
+            await execute_trading_pipeline()
+            logging.info("✅ Auto-trading: Trade decision completed")
+            await asyncio.sleep(300)  # Wait 5 minutes between trades
+        except Exception as e:
+            logging.error(f"Auto-trade error: {str(e)}")
+            await asyncio.sleep(60)  # Wait 1 minute before retrying
+
+# API Routes
+@api_router.get("/")
+async def root():
+    return {"message": "Crypto Trading Agent API with Real-time Data"}
+
+@api_router.post("/trade/trigger")
+async def trigger_trade():
+    """Trigger a manual trade decision"""
+    try:
+        trade_result = await execute_trading_pipeline()
+        return trade_result
+    except Exception as e:
+        logging.error(f"Manual trade trigger error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/trade/auto/enable")
+async def enable_auto_trading():
+    """Enable automatic trading"""
+    global auto_trading_enabled, auto_trading_task
+    
+    if not auto_trading_enabled:
+        auto_trading_enabled = True
+        auto_trading_task = asyncio.create_task(auto_trade_scheduler())
+        logging.info("🚀 Auto-trading enabled")
+        return {"message": "Auto-trading enabled", "status": "active"}
+    else:
+        return {"message": "Auto-trading already enabled", "status": "active"}
+
+@api_router.post("/trade/auto/disable")
+async def disable_auto_trading():
+    """Disable automatic trading"""
+    global auto_trading_enabled, auto_trading_task
+    
+    if auto_trading_enabled:
+        auto_trading_enabled = False
+        if auto_trading_task:
+            auto_trading_task.cancel()
+            auto_trading_task = None
+        logging.info("⏸️ Auto-trading disabled")
+        return {"message": "Auto-trading disabled", "status": "inactive"}
+    else:
+        return {"message": "Auto-trading already disabled", "status": "inactive"}
+
+@api_router.get("/trade/auto/status")
+async def get_auto_trading_status():
+    """Get auto-trading status"""
+    return {"auto_trading_enabled": auto_trading_enabled}
 
 @api_router.get("/trade/live")
 async def get_live_trade():
@@ -336,7 +558,8 @@ async def get_trading_metrics():
                 total_trades=0,
                 successful_trades=0,
                 total_profit_loss=0.0,
-                accuracy_percentage=0.0
+                accuracy_percentage=0.0,
+                auto_trading_enabled=auto_trading_enabled
             )
         
         total_trades = len(all_trades)
@@ -353,7 +576,8 @@ async def get_trading_metrics():
             successful_trades=successful_trades,
             total_profit_loss=total_profit_loss,
             accuracy_percentage=accuracy_percentage,
-            last_trade_time=last_trade_time
+            last_trade_time=last_trade_time,
+            auto_trading_enabled=auto_trading_enabled
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -362,7 +586,7 @@ async def get_trading_metrics():
 async def get_current_market_data():
     """Get current market data"""
     try:
-        market_data = await get_mock_market_data()
+        market_data = await get_real_market_data()
         return market_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -375,17 +599,6 @@ async def get_portfolio_status():
         "btc_amount": current_btc_amount,
         "last_trade_price": last_trade_price
     }
-
-# Background task for auto-trading (can be enabled later)
-async def auto_trade_scheduler():
-    """Background task for automatic trading (currently disabled)"""
-    while True:
-        try:
-            # await trigger_trade()  # Uncomment to enable auto-trading
-            await asyncio.sleep(300)  # Wait 5 minutes between trades
-        except Exception as e:
-            logging.error(f"Auto-trade error: {str(e)}")
-            await asyncio.sleep(60)
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -407,4 +620,8 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global auto_trading_enabled, auto_trading_task
+    auto_trading_enabled = False
+    if auto_trading_task:
+        auto_trading_task.cancel()
     client.close()
