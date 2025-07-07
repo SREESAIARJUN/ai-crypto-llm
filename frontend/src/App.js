@@ -229,17 +229,22 @@ const TradingDashboard = () => {
         fetchMarketData(),
         fetchPortfolio(),
         fetchAutoTradingStatus(),
-        fetchChartData()
+        fetchChartData(),
+        fetchSettings()
       ]);
     };
 
     fetchAllData();
 
     if (autoRefresh) {
-      const interval = setInterval(fetchAllData, 15000); // Refresh every 15 seconds
+      // Use settings for refresh interval or default to 15 seconds
+      const refreshInterval = settings?.frontend_refresh_interval_seconds ? 
+        settings.frontend_refresh_interval_seconds * 1000 : 15000;
+      
+      const interval = setInterval(fetchAllData, refreshInterval);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh]);
+  }, [autoRefresh, settings?.frontend_refresh_interval_seconds]);
 
   const getActionClasses = (action) => {
     switch (action) {
