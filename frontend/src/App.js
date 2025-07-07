@@ -1078,6 +1078,9 @@ const TradingDashboard = () => {
             </table>
           </div>
         </div>
+        
+        {/* Settings Modal */}
+        <SettingsModal />
       </div>
     </div>
   );
