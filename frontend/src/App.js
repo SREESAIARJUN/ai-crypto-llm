@@ -129,14 +129,23 @@ const TradingDashboard = () => {
     }
   };
 
-  // Fetch portfolio
-  const fetchPortfolio = async () => {
+  // Fetch chart data
+  const fetchChartData = async (timeframe = chartTimeframe) => {
+    setChartLoading(true);
     try {
-      const response = await axios.get(`${API}/portfolio`);
-      setPortfolio(response.data);
+      const response = await axios.get(`${API}/trades/chart-data?timeframe=${timeframe}`);
+      setChartData(response.data);
     } catch (error) {
-      console.error('Error fetching portfolio:', error);
+      console.error('Error fetching chart data:', error);
+    } finally {
+      setChartLoading(false);
     }
+  };
+
+  // Change chart timeframe
+  const handleTimeframeChange = (newTimeframe) => {
+    setChartTimeframe(newTimeframe);
+    fetchChartData(newTimeframe);
   };
 
   // Trigger new trade
