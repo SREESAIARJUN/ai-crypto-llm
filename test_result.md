@@ -98,7 +98,7 @@
 
 
 
-user_problem_statement: "Test the crypto trading agent backend with these specific tests: 1. Basic API Health Check, 2. Market Data Endpoint, 3. Portfolio Status, 4. Metrics Endpoint, 5. Trade Trigger, 6. Live Trade, 7. Trade History. Focus on testing the LLM integration and JSON parsing."
+user_problem_statement: "Implement live-trades-view chart in the crypto trading agent and strictly implement all the things in server.py backend no simulations or placeholders allowed. The implementation should include real-time Bitcoin price chart with trade markers overlaid, portfolio performance tracking, and sentiment indicators. All data must be real (no mock data) from CoinGecko API, news feeds, and trading decisions."
 
 backend:
   - task: "API Health Check"
