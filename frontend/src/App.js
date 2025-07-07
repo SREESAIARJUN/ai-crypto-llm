@@ -500,6 +500,217 @@ const TradingDashboard = () => {
     }
   };
 
+  // Settings Modal Component
+  const SettingsModal = () => {
+    const [localSettings, setLocalSettings] = useState(settings);
+    
+    const handleSettingChange = (key, value) => {
+      setLocalSettings(prev => ({
+        ...prev,
+        [key]: value
+      }));
+    };
+
+    const handleSave = () => {
+      updateSettings(localSettings);
+      setShowSettings(false);
+    };
+
+    const handleReset = () => {
+      if (window.confirm('Are you sure you want to reset all settings to defaults?')) {
+        resetSettings();
+        setShowSettings(false);
+      }
+    };
+
+    if (!showSettings || !localSettings) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold primary-text">⚙️ Trading Settings</h2>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Portfolio Settings */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-blue-400">Portfolio</h3>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Initial Portfolio Value ($)</label>
+                <input
+                  type="number"
+                  value={localSettings.initial_portfolio_value}
+                  onChange={(e) => handleSettingChange('initial_portfolio_value', parseFloat(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="100"
+                  step="100"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Risk Threshold</label>
+                <input
+                  type="number"
+                  value={localSettings.risk_threshold}
+                  onChange={(e) => handleSettingChange('risk_threshold', parseFloat(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Confidence Threshold</label>
+                <input
+                  type="number"
+                  value={localSettings.confidence_threshold}
+                  onChange={(e) => handleSettingChange('confidence_threshold', parseFloat(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+            </div>
+
+            {/* Trading Settings */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-green-400">Trading</h3>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Auto-Trading Interval (minutes)</label>
+                <input
+                  type="number"
+                  value={localSettings.auto_trading_interval_minutes}
+                  onChange={(e) => handleSettingChange('auto_trading_interval_minutes', parseInt(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="1"
+                  step="1"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Max Trades Per Day</label>
+                <input
+                  type="number"
+                  value={localSettings.max_trades_per_day}
+                  onChange={(e) => handleSettingChange('max_trades_per_day', parseInt(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="1"
+                  step="1"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Stop Loss (%)</label>
+                <input
+                  type="number"
+                  value={localSettings.stop_loss_percentage}
+                  onChange={(e) => handleSettingChange('stop_loss_percentage', parseFloat(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="1"
+                  max="50"
+                  step="0.5"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm secondary-text mb-1">Take Profit (%)</label>
+                <input
+                  type="number"
+                  value={localSettings.take_profit_percentage}
+                  onChange={(e) => handleSettingChange('take_profit_percentage', parseFloat(e.target.value))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="1"
+                  max="100"
+                  step="0.5"
+                />
+              </div>
+            </div>
+
+            {/* System Settings */}
+            <div className="space-y-4 md:col-span-2">
+              <h3 className="text-lg font-semibold text-yellow-400">System</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm secondary-text mb-1">Refresh Interval (seconds)</label>
+                  <input
+                    type="number"
+                    value={localSettings.frontend_refresh_interval_seconds}
+                    onChange={(e) => handleSettingChange('frontend_refresh_interval_seconds', parseInt(e.target.value))}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    min="5"
+                    step="5"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm secondary-text mb-1">Price History Limit</label>
+                  <input
+                    type="number"
+                    value={localSettings.price_history_limit}
+                    onChange={(e) => handleSettingChange('price_history_limit', parseInt(e.target.value))}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    min="10"
+                    step="10"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm secondary-text mb-1">Portfolio History Limit</label>
+                  <input
+                    type="number"
+                    value={localSettings.portfolio_snapshots_limit}
+                    onChange={(e) => handleSettingChange('portfolio_snapshots_limit', parseInt(e.target.value))}
+                    className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                    min="10"
+                    step="10"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between mt-6">
+            <button
+              onClick={handleReset}
+              disabled={settingsLoading}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              {settingsLoading ? 'Resetting...' : 'Reset to Defaults'}
+            </button>
+            
+            <div className="space-x-2">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={settingsLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {settingsLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="premium-dark-bg">
       <div className="container mx-auto px-4 py-8">
