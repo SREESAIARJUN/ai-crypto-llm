@@ -163,11 +163,11 @@ backend:
 
   - task: "Trade Trigger"
     implemented: true
-    working: true
+    working: false
     file: "/app/backend/server.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: true
           agent: "testing"
@@ -175,6 +175,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Enhanced Trade Trigger endpoint (/api/trade/trigger) is working correctly. Successfully integrates with OpenAI API, generates trade decisions with Chain of Thought reasoning, and now includes news_sentiment and twitter_sentiment fields in the response. The sentiment analysis is properly integrated into the trading decision process."
+        - working: false
+          agent: "testing"
+          comment: "Trade Trigger endpoint (/api/trade/trigger) is failing with a 500 error. The issue is related to OpenAI API authentication: 'Incorrect API key provided'. The API key in the .env file needs to be updated or fixed."
 
   - task: "Live Trade"
     implemented: true
@@ -190,6 +193,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Enhanced Live Trade endpoint (/api/trade/live) is working correctly. Returns the most recent trade with all required fields including the new news_sentiment and twitter_sentiment fields."
+        - working: true
+          agent: "testing"
+          comment: "Live Trade endpoint (/api/trade/live) is working correctly. Currently returns 'No trades found' as expected since no trades have been made yet."
 
   - task: "Trade History"
     implemented: true
@@ -205,6 +211,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Enhanced Trade History endpoint (/api/trade/history) is working correctly. Returns a list of past trades in reverse chronological order, with each trade now including news_sentiment and twitter_sentiment fields."
+        - working: true
+          agent: "testing"
+          comment: "Trade History endpoint (/api/trade/history) is working correctly. Currently returns an empty list as expected since no trades have been made yet."
 
   - task: "Auto-trading Controls"
     implemented: true
@@ -217,11 +226,38 @@ backend:
         - working: true
           agent: "testing"
           comment: "Auto-trading Controls are working correctly. The /api/trade/auto/enable endpoint successfully enables automatic trading, /api/trade/auto/disable successfully disables it, and /api/trade/auto/status correctly reports the current status."
+        - working: true
+          agent: "testing"
+          comment: "Auto-trading Controls are still working correctly. Successfully tested enabling and disabling auto-trading, and the status endpoint correctly reports the current state."
+
+  - task: "Chart Data Endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Chart Data endpoint (/api/trades/chart-data) is working correctly. Successfully tested with all timeframes (1h, 24h, 7d) and verified it returns price_history, trade_markers, portfolio_history, and sentiment_timeline. The endpoint also handles the case when no data exists by providing fallback data."
+
+  - task: "Live Chart Update Endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "Live Chart Update endpoint (/api/trades/chart-data/live) is working correctly. Successfully verified it returns latest price, portfolio, and sentiment data. Real-time updates were confirmed by making sequential requests and observing timestamp changes."
 
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
@@ -234,7 +270,10 @@ test_plan:
     - "Live Trade"
     - "Trade History"
     - "Auto-trading Controls"
-  stuck_tasks: []
+    - "Chart Data Endpoint"
+    - "Live Chart Update Endpoint"
+  stuck_tasks: 
+    - "Trade Trigger"
   test_all: true
   test_priority: "high_first"
 
@@ -243,3 +282,5 @@ agent_communication:
       message: "Completed comprehensive testing of all backend API endpoints. Created backend_test.py to test all required endpoints. All tests passed successfully. The backend is working correctly with proper LLM integration and JSON parsing. The OpenAI API integration is working well, generating structured trade decisions with Chain of Thought reasoning."
     - agent: "testing"
       message: "Completed comprehensive testing of the enhanced crypto trading agent backend. All tests passed successfully. The real-world data integration is working correctly, fetching Bitcoin price from CoinGecko, news from CoinDesk RSS, and including sentiment analysis. The auto-trading controls are functioning properly, allowing users to enable/disable automatic trading. The enhanced trade pipeline now includes sentiment analysis, and all trade results include news_sentiment and twitter_sentiment fields. The live data updates are working correctly, providing real Bitcoin price, volume, RSI, and sentiment data."
+    - agent: "testing"
+      message: "Completed testing of the new chart data endpoints. The /api/trades/chart-data endpoint works correctly with all timeframes (1h, 24h, 7d) and returns the expected data structure with price_history, trade_markers, portfolio_history, and sentiment_timeline. The /api/trades/chart-data/live endpoint also works correctly, providing real-time updates of price, portfolio, and sentiment data. The only issue found is with the Trade Trigger endpoint, which is failing due to an OpenAI API authentication error. The API key in the .env file needs to be updated or fixed."
