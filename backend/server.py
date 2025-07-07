@@ -120,6 +120,22 @@ class ChartData(BaseModel):
     timeframe: str
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
+class TradingSettings(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    initial_portfolio_value: float = 1000.0
+    auto_trading_interval_minutes: int = 5
+    price_history_limit: int = 100
+    portfolio_snapshots_limit: int = 100
+    sentiment_history_limit: int = 50
+    frontend_refresh_interval_seconds: int = 15
+    risk_threshold: float = 0.7
+    confidence_threshold: float = 0.6
+    max_trades_per_day: int = 10
+    stop_loss_percentage: float = 5.0
+    take_profit_percentage: float = 10.0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
 # Global variables for trading state
 current_portfolio_value = 1000.0  # Starting with $1000 USDT
 current_btc_amount = 0.0
