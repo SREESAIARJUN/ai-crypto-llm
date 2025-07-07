@@ -144,10 +144,11 @@ auto_trading_enabled = False
 auto_trading_task = None
 trading_settings = None  # Will be loaded from database
 
-# Store historical data for charts
+# Store historical data for charts and technical analysis
 price_history = []
 portfolio_snapshots = []
 sentiment_history = []
+rsi_price_history = []  # Dedicated for RSI calculation (stores last 14+ prices)
 
 # API Keys
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
