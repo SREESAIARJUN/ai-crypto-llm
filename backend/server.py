@@ -225,15 +225,25 @@ async def get_bitcoin_price():
             async with session.get(
                 "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true"
             ) as response:
-                data = await response.json()
-                price = data["bitcoin"]["usd"]
-                volume_change = data["bitcoin"]["usd_24h_change"]
-                
-                # Simulate RSI calculation (in real app, you'd use proper technical analysis)
-                rsi = 50 + (volume_change / 2)  # Simplified RSI approximation
-                rsi = max(0, min(100, rsi))  # Clamp between 0-100
-                
-                return price, abs(volume_change / 100), rsi
+                if response.status == 200:
+                    data = await response.json()
+                    logging.info(f"CoinGecko API response: {data}")
+                    
+                    if "bitcoin" in data:
+                        price = data["bitcoin"]["usd"]
+                        volume_change = data["bitcoin"].get("usd_24h_change", 0)
+                        
+                        # Simulate RSI calculation (in real app, you'd use proper technical analysis)
+                        rsi = 50 + (volume_change / 2)  # Simplified RSI approximation
+                        rsi = max(0, min(100, rsi))  # Clamp between 0-100
+                        
+                        return price, abs(volume_change / 100), rsi
+                    else:
+                        logging.error(f"Bitcoin not found in CoinGecko response: {data}")
+                        return 45000.0, 1.0, 50.0  # Fallback values
+                else:
+                    logging.error(f"CoinGecko API returned status {response.status}")
+                    return 45000.0, 1.0, 50.0  # Fallback values
     except Exception as e:
         logging.error(f"Error fetching Bitcoin price: {e}")
         return 45000.0, 1.0, 50.0  # Fallback values
