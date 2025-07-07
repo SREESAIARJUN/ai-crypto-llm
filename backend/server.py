@@ -18,6 +18,7 @@ import feedparser
 from bs4 import BeautifulSoup
 from textblob import TextBlob
 import re
+from collections import defaultdict
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
