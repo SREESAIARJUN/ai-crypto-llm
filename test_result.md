@@ -301,6 +301,7 @@ test_plan:
     - "Chart Data Endpoint"
     - "Live Chart Update Endpoint"
     - "Live Trades Chart Implementation"
+    - "Settings Functionality"
   stuck_tasks: 
     - "Trade Trigger"
   test_all: true
