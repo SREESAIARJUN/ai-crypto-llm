@@ -129,6 +129,16 @@ const TradingDashboard = () => {
     }
   };
 
+  // Fetch portfolio
+  const fetchPortfolio = async () => {
+    try {
+      const response = await axios.get(`${API}/portfolio`);
+      setPortfolio(response.data);
+    } catch (error) {
+      console.error('Error fetching portfolio:', error);
+    }
+  };
+
   // Fetch chart data
   const fetchChartData = async (timeframe = chartTimeframe) => {
     setChartLoading(true);
