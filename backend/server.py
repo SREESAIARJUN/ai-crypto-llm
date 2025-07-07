@@ -90,6 +90,36 @@ class TradingMetrics(BaseModel):
     last_trade_time: Optional[datetime] = None
     auto_trading_enabled: bool = False
 
+class ChartDataPoint(BaseModel):
+    timestamp: datetime
+    price: float
+    volume: float
+    rsi: float
+
+class TradeMarker(BaseModel):
+    timestamp: datetime
+    price: float
+    decision: str
+    confidence: float
+    profit_loss: Optional[float] = None
+    news_sentiment: Optional[str] = None
+    twitter_sentiment: Optional[str] = None
+
+class PortfolioSnapshot(BaseModel):
+    timestamp: datetime
+    total_value: float
+    usd_balance: float
+    btc_amount: float
+    btc_value: float
+
+class ChartData(BaseModel):
+    price_history: List[ChartDataPoint]
+    trade_markers: List[TradeMarker]
+    portfolio_history: List[PortfolioSnapshot]
+    sentiment_timeline: List[Dict[str, Any]]
+    timeframe: str
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
 # Global variables for trading state
 current_portfolio_value = 1000.0  # Starting with $1000 USDT
 current_btc_amount = 0.0
