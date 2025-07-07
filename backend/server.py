@@ -127,6 +127,11 @@ last_trade_price = 0.0
 auto_trading_enabled = False
 auto_trading_task = None
 
+# Store historical data for charts
+price_history = []
+portfolio_snapshots = []
+sentiment_history = []
+
 # API Keys
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY')
