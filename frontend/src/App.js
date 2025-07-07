@@ -764,6 +764,13 @@ const TradingDashboard = () => {
           >
             {autoRefresh ? '🔄 Auto-refresh ON' : '⏸️ Auto-refresh OFF'}
           </button>
+          
+          <button
+            onClick={() => setShowSettings(true)}
+            className="premium-button btn-settings"
+          >
+            ⚙️ Settings
+          </button>
         </div>
 
         {/* Auto-Trading Status */}
