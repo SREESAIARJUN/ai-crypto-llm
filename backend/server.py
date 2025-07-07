@@ -1060,6 +1060,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize settings on startup"""
+    global trading_settings, current_portfolio_value
+    
+    try:
+        # Load trading settings
+        trading_settings = await get_trading_settings()
+        
+        # Initialize portfolio value from settings if it's still default
+        if current_portfolio_value == 1000.0:
+            current_portfolio_value = trading_settings.initial_portfolio_value
+            
+        logging.info(f"✅ Startup: Trading settings loaded successfully")
+        logging.info(f"✅ Startup: Portfolio value set to ${current_portfolio_value}")
+        
+    except Exception as e:
+        logging.error(f"❌ Startup: Error initializing settings: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     global auto_trading_enabled, auto_trading_task
