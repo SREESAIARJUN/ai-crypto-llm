@@ -251,6 +251,207 @@ const TradingDashboard = () => {
     return new Date(dateString).toLocaleString();
   };
 
+  // Prepare chart data for Chart.js
+  const prepareChartData = () => {
+    if (!chartData || !chartData.price_history) return null;
+
+    const labels = chartData.price_history.map(point => new Date(point.timestamp));
+    const prices = chartData.price_history.map(point => point.price);
+    const portfolioValues = chartData.portfolio_history.map(snapshot => ({
+      x: new Date(snapshot.timestamp),
+      y: snapshot.total_value
+    }));
+
+    // Prepare trade markers as scatter points
+    const tradePoints = chartData.trade_markers.map(trade => ({
+      x: new Date(trade.timestamp),
+      y: trade.price,
+      decision: trade.decision,
+      confidence: trade.confidence,
+      profit_loss: trade.profit_loss || 0,
+      news_sentiment: trade.news_sentiment,
+      twitter_sentiment: trade.twitter_sentiment
+    }));
+
+    const buyTrades = tradePoints.filter(trade => trade.decision === 'BUY');
+    const sellTrades = tradePoints.filter(trade => trade.decision === 'SELL');
+    const holdTrades = tradePoints.filter(trade => trade.decision === 'HOLD');
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Bitcoin Price',
+          data: prices,
+          borderColor: '#F7931A',
+          backgroundColor: 'rgba(247, 147, 26, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 1,
+          pointHoverRadius: 5,
+          yAxisID: 'price'
+        },
+        {
+          label: 'Portfolio Value',
+          data: portfolioValues,
+          borderColor: '#00D084',
+          backgroundColor: 'rgba(0, 208, 132, 0.1)',
+          borderWidth: 2,
+          fill: false,
+          tension: 0.4,
+          pointRadius: 1,
+          pointHoverRadius: 5,
+          yAxisID: 'portfolio'
+        },
+        {
+          label: 'BUY Trades',
+          data: buyTrades,
+          backgroundColor: '#00D084',
+          borderColor: '#00D084',
+          pointRadius: 8,
+          pointHoverRadius: 12,
+          showLine: false,
+          yAxisID: 'price'
+        },
+        {
+          label: 'SELL Trades',
+          data: sellTrades,
+          backgroundColor: '#F6465D',
+          borderColor: '#F6465D',
+          pointRadius: 8,
+          pointHoverRadius: 12,
+          showLine: false,
+          yAxisID: 'price'
+        },
+        {
+          label: 'HOLD Trades',
+          data: holdTrades,
+          backgroundColor: '#FFA500',
+          borderColor: '#FFA500',
+          pointRadius: 6,
+          pointHoverRadius: 10,
+          showLine: false,
+          yAxisID: 'price'
+        }
+      ]
+    };
+  };
+
+  // Chart options
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#E4E4E7',
+          usePointStyle: true
+        }
+      },
+      title: {
+        display: true,
+        text: `Live Trades Chart - ${chartTimeframe.toUpperCase()}`,
+        color: '#E4E4E7',
+        font: {
+          size: 16,
+          weight: 'bold'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#E4E4E7',
+        bodyColor: '#E4E4E7',
+        borderColor: '#374151',
+        borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            const datasetLabel = context.dataset.label;
+            
+            if (datasetLabel.includes('Trades')) {
+              const trade = context.raw;
+              return [
+                `${datasetLabel}: ${trade.decision}`,
+                `Price: $${trade.y.toLocaleString()}`,
+                `Confidence: ${(trade.confidence * 100).toFixed(1)}%`,
+                `P&L: $${trade.profit_loss.toFixed(2)}`,
+                `News: ${trade.news_sentiment || 'N/A'}`,
+                `Twitter: ${trade.twitter_sentiment || 'N/A'}`
+              ];
+            } else if (datasetLabel === 'Bitcoin Price') {
+              return `Price: $${context.parsed.y.toLocaleString()}`;
+            } else if (datasetLabel === 'Portfolio Value') {
+              return `Portfolio: $${context.parsed.y.toFixed(2)}`;
+            }
+            
+            return `${datasetLabel}: ${context.parsed.y}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'time',
+        time: {
+          displayFormats: {
+            hour: 'HH:mm',
+            day: 'MMM dd',
+            week: 'MMM dd'
+          }
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: '#9CA3AF'
+        }
+      },
+      price: {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: '#9CA3AF',
+          callback: function(value) {
+            return '$' + value.toLocaleString();
+          }
+        },
+        title: {
+          display: true,
+          text: 'Bitcoin Price (USD)',
+          color: '#F7931A'
+        }
+      },
+      portfolio: {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        grid: {
+          drawOnChartArea: false,
+        },
+        ticks: {
+          color: '#9CA3AF',
+          callback: function(value) {
+            return '$' + value.toFixed(0);
+          }
+        },
+        title: {
+          display: true,
+          text: 'Portfolio Value (USD)',
+          color: '#00D084'
+        }
+      }
+    }
+  };
+
   return (
     <div className="premium-dark-bg">
       <div className="container mx-auto px-4 py-8">
