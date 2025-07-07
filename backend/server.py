@@ -418,7 +418,24 @@ async def get_real_market_data():
         
         # Get news data
         news_items = await get_coindesk_news()
-        news_sentiment = analyze_news_sentiment(news_items)
+        
+        # Calculate sentiment using TextBlob
+        sentiments = []
+        for news in news_items:
+            blob = TextBlob(news)
+            sentiments.append(blob.sentiment.polarity)
+        
+        # Determine overall sentiment
+        if sentiments:
+            avg_sentiment = sum(sentiments) / len(sentiments)
+            if avg_sentiment > 0.1:
+                news_sentiment = "Positive"
+            elif avg_sentiment < -0.1:
+                news_sentiment = "Negative"
+            else:
+                news_sentiment = "Neutral"
+        else:
+            news_sentiment = "Neutral"
         
         # Get Twitter data
         tweets, twitter_sentiment = await get_twitter_sentiment()
