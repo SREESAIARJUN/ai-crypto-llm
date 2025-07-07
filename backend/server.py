@@ -411,7 +411,7 @@ async def get_real_market_data():
 
 async def execute_paper_trade(decision: str, price: float, confidence: float):
     """Execute paper trading logic"""
-    global current_portfolio_value, current_btc_amount, last_trade_price
+    global current_portfolio_value, current_btc_amount, last_trade_price, portfolio_snapshots
     
     profit_loss = 0.0
     
@@ -428,6 +428,24 @@ async def execute_paper_trade(decision: str, price: float, confidence: float):
         profit_loss = usd_received - (current_btc_amount * last_trade_price)
         current_portfolio_value = usd_received
         current_btc_amount = 0.0
+    
+    # Create portfolio snapshot for charts
+    current_time = datetime.utcnow()
+    btc_value = current_btc_amount * price
+    total_value = current_portfolio_value + btc_value
+    
+    portfolio_snapshot = PortfolioSnapshot(
+        timestamp=current_time,
+        total_value=total_value,
+        usd_balance=current_portfolio_value,
+        btc_amount=current_btc_amount,
+        btc_value=btc_value
+    )
+    portfolio_snapshots.append(portfolio_snapshot)
+    
+    # Keep only last 100 snapshots
+    if len(portfolio_snapshots) > 100:
+        portfolio_snapshots = portfolio_snapshots[-100:]
         
     return profit_loss
 
