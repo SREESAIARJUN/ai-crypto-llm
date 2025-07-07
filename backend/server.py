@@ -346,6 +346,8 @@ def analyze_news_sentiment(news_items):
 
 async def get_real_market_data():
     """Get real-time market data from multiple sources"""
+    global price_history, sentiment_history
+    
     try:
         # Get Bitcoin price and technical indicators
         price, volume, rsi = await get_bitcoin_price()
@@ -356,6 +358,34 @@ async def get_real_market_data():
         
         # Get Twitter data
         tweets, twitter_sentiment = await get_twitter_sentiment()
+        
+        # Store price history for charts
+        current_time = datetime.utcnow()
+        price_point = ChartDataPoint(
+            timestamp=current_time,
+            price=price,
+            volume=volume,
+            rsi=rsi
+        )
+        price_history.append(price_point)
+        
+        # Keep only last 100 price points to prevent memory issues
+        if len(price_history) > 100:
+            price_history = price_history[-100:]
+        
+        # Store sentiment history
+        sentiment_point = {
+            "timestamp": current_time,
+            "news_sentiment": news_sentiment,
+            "twitter_sentiment": twitter_sentiment,
+            "news_items": news_items[:3],  # Store top 3 news items
+            "tweets": tweets[:3] if isinstance(tweets, list) else []
+        }
+        sentiment_history.append(sentiment_point)
+        
+        # Keep only last 50 sentiment points
+        if len(sentiment_history) > 50:
+            sentiment_history = sentiment_history[-50:]
         
         return MarketData(
             price=price,
