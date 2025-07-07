@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import sys
 
 # Backend API URL from frontend/.env
-BACKEND_URL = "https://b365afac-dc34-4e20-a366-eab471747605.preview.emergentagent.com/api"
+BACKEND_URL = "https://6213b92a-a983-46c4-b8a7-5fde584ff091.preview.emergentagent.com/api"
 
 def print_separator():
     print("\n" + "="*80 + "\n")
