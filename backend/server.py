@@ -510,8 +510,10 @@ async def execute_paper_trade(decision: str, price: float, confidence: float):
     )
     portfolio_snapshots.append(portfolio_snapshot)
     
-    # Keep only last 100 snapshots
-    if len(portfolio_snapshots) > 100:
+    # Keep only configured number of snapshots
+    if trading_settings and len(portfolio_snapshots) > trading_settings.portfolio_snapshots_limit:
+        portfolio_snapshots = portfolio_snapshots[-trading_settings.portfolio_snapshots_limit:]
+    elif not trading_settings and len(portfolio_snapshots) > 100:  # fallback
         portfolio_snapshots = portfolio_snapshots[-100:]
         
     return profit_loss
