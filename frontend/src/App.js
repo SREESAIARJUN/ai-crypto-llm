@@ -604,7 +604,64 @@ const TradingDashboard = () => {
           )}
         </div>
 
-        {/* Live Trade Panel */}
+        {/* Live Trades Chart */}
+        <div className="glass-card mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold primary-text">📈 Live Trades Chart</h3>
+            <div className="flex gap-2">
+              {['1h', '24h', '7d'].map(timeframe => (
+                <button
+                  key={timeframe}
+                  onClick={() => handleTimeframeChange(timeframe)}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    chartTimeframe === timeframe
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {timeframe.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {chartLoading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="premium-spinner mr-2"></div>
+              <span className="secondary-text">Loading chart data...</span>
+            </div>
+          ) : chartData && prepareChartData() ? (
+            <div className="h-96">
+              <Line data={prepareChartData()} options={chartOptions} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-96">
+              <span className="secondary-text">No chart data available</span>
+            </div>
+          )}
+          
+          {/* Chart Legend Info */}
+          {chartData && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <span className="secondary-text">Bitcoin Price</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="secondary-text">Portfolio Value</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="secondary-text">BUY Trades</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="secondary-text">SELL Trades</span>
+              </div>
+            </div>
+          )}
+        </div>
         {liveTrade && (
           <div className="glass-card mb-8">
             <h3 className="text-xl font-semibold primary-text mb-4">🔥 Latest Trade Decision</h3>
