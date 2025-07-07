@@ -14,6 +14,51 @@ const TradingDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoTradingEnabled, setAutoTradingEnabled] = useState(false);
+  const [autoTradingLoading, setAutoTradingLoading] = useState(false);
+
+  // Fetch auto-trading status
+  const fetchAutoTradingStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/trade/auto/status`);
+      setAutoTradingEnabled(response.data.auto_trading_enabled);
+    } catch (error) {
+      console.error('Error fetching auto-trading status:', error);
+    }
+  };
+
+  // Toggle auto-trading
+  const toggleAutoTrading = async () => {
+    setAutoTradingLoading(true);
+    try {
+      const endpoint = autoTradingEnabled ? '/trade/auto/disable' : '/trade/auto/enable';
+      const response = await axios.post(`${API}${endpoint}`);
+      setAutoTradingEnabled(response.data.status === 'active');
+      
+      // Show notification
+      const message = autoTradingEnabled ? 'Auto-trading disabled' : 'Auto-trading enabled';
+      showNotification(message, 'success');
+    } catch (error) {
+      console.error('Error toggling auto-trading:', error);
+      showNotification('Error toggling auto-trading', 'error');
+    } finally {
+      setAutoTradingLoading(false);
+    }
+  };
+
+  // Show notification
+  const showNotification = (message, type) => {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+      document.body.removeChild(notification);
+    }, 3000);
+  };
 
   // Fetch live trade data
   const fetchLiveTrade = async () => {
@@ -74,9 +119,10 @@ const TradingDashboard = () => {
       await fetchTradeHistory();
       await fetchMetrics();
       await fetchPortfolio();
+      showNotification('Trade decision executed successfully!', 'success');
     } catch (error) {
       console.error('Error triggering trade:', error);
-      alert('Error triggering trade: ' + error.message);
+      showNotification('Error triggering trade: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -90,31 +136,59 @@ const TradingDashboard = () => {
         fetchTradeHistory(),
         fetchMetrics(),
         fetchMarketData(),
-        fetchPortfolio()
+        fetchPortfolio(),
+        fetchAutoTradingStatus()
       ]);
     };
 
     fetchAllData();
 
     if (autoRefresh) {
-      const interval = setInterval(fetchAllData, 30000); // Refresh every 30 seconds
+      const interval = setInterval(fetchAllData, 15000); // Refresh every 15 seconds
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
 
   const getActionColor = (action) => {
     switch (action) {
-      case 'BUY': return 'text-green-500';
-      case 'SELL': return 'text-red-500';
-      case 'HOLD': return 'text-yellow-500';
-      default: return 'text-gray-500';
+      case 'BUY': return 'text-green-400';
+      case 'SELL': return 'text-red-400';
+      case 'HOLD': return 'text-yellow-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getActionBg = (action) => {
+    switch (action) {
+      case 'BUY': return 'bg-green-500/20 border-green-500/50';
+      case 'SELL': return 'bg-red-500/20 border-red-500/50';
+      case 'HOLD': return 'bg-yellow-500/20 border-yellow-500/50';
+      default: return 'bg-gray-500/20 border-gray-500/50';
     }
   };
 
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.8) return 'text-green-500';
-    if (confidence >= 0.6) return 'text-yellow-500';
-    return 'text-red-500';
+    if (confidence >= 0.8) return 'text-green-400';
+    if (confidence >= 0.6) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
+  const getSentimentColor = (sentiment) => {
+    switch (sentiment?.toLowerCase()) {
+      case 'positive': return 'text-green-400';
+      case 'negative': return 'text-red-400';
+      case 'neutral': return 'text-gray-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getSentimentIcon = (sentiment) => {
+    switch (sentiment?.toLowerCase()) {
+      case 'positive': return '😊';
+      case 'negative': return '😢';
+      case 'neutral': return '😐';
+      default: return '❓';
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -129,56 +203,96 @@ const TradingDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="netflix-bg">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
+          <h1 className="text-5xl font-bold text-white mb-2 netflix-title">
             🤖 Autonomous Crypto Trading Agent
           </h1>
-          <p className="text-gray-300">
-            LLM-Powered Paper Trading with Real-time Analysis
+          <p className="text-gray-300 text-lg">
+            LLM-Powered Paper Trading with Real-time Sentiment Analysis
           </p>
         </div>
 
         {/* Controls */}
-        <div className="flex justify-center gap-4 mb-8">
+        <div className="flex flex-wrap justify-center gap-4 mb-8">
           <button
             onClick={triggerTrade}
             disabled={loading}
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="netflix-button bg-red-600 hover:bg-red-700 disabled:bg-red-800/50"
           >
-            {loading ? '⏳ Analyzing...' : '🧠 Trigger Trade Decision'}
+            {loading ? (
+              <>
+                <div className="spinner inline-block mr-2"></div>
+                🧠 Analyzing...
+              </>
+            ) : (
+              '🧠 Manual Trade Decision'
+            )}
+          </button>
+          
+          <button
+            onClick={toggleAutoTrading}
+            disabled={autoTradingLoading}
+            className={`netflix-button ${
+              autoTradingEnabled 
+                ? 'bg-orange-600 hover:bg-orange-700' 
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            {autoTradingLoading ? (
+              <>
+                <div className="spinner inline-block mr-2"></div>
+                Processing...
+              </>
+            ) : (
+              autoTradingEnabled ? '⏸️ Disable Auto-Trading' : '🚀 Enable Auto-Trading'
+            )}
           </button>
           
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+            className={`netflix-button ${
               autoRefresh 
-                ? 'bg-green-500 hover:bg-green-600 text-white' 
-                : 'bg-gray-500 hover:bg-gray-600 text-white'
+                ? 'bg-blue-600 hover:bg-blue-700' 
+                : 'bg-gray-600 hover:bg-gray-700'
             }`}
           >
             {autoRefresh ? '🔄 Auto-refresh ON' : '⏸️ Auto-refresh OFF'}
           </button>
         </div>
 
+        {/* Auto-Trading Status */}
+        <div className="text-center mb-8">
+          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+            autoTradingEnabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+          }`}>
+            <div className={`w-3 h-3 rounded-full ${
+              autoTradingEnabled ? 'bg-green-400 animate-pulse' : 'bg-gray-400'
+            }`}></div>
+            <span className="font-medium">
+              Auto-Trading: {autoTradingEnabled ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+          </div>
+        </div>
+
         {/* Metrics Dashboard */}
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+            <div className="netflix-card">
               <h3 className="text-lg font-semibold text-white mb-2">Total Trades</h3>
               <p className="text-3xl font-bold text-blue-400">{metrics.total_trades}</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+            <div className="netflix-card">
               <h3 className="text-lg font-semibold text-white mb-2">Successful</h3>
               <p className="text-3xl font-bold text-green-400">{metrics.successful_trades}</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+            <div className="netflix-card">
               <h3 className="text-lg font-semibold text-white mb-2">Accuracy</h3>
               <p className="text-3xl font-bold text-purple-400">{metrics.accuracy_percentage.toFixed(1)}%</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+            <div className="netflix-card">
               <h3 className="text-lg font-semibold text-white mb-2">P&L</h3>
               <p className={`text-3xl font-bold ${metrics.total_profit_loss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {formatCurrency(metrics.total_profit_loss)}
@@ -187,61 +301,117 @@ const TradingDashboard = () => {
           </div>
         )}
 
-        {/* Portfolio Status */}
-        {portfolio && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
-            <h3 className="text-xl font-semibold text-white mb-4">💼 Portfolio Status</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-gray-300">USD Balance</p>
-                <p className="text-2xl font-bold text-green-400">{formatCurrency(portfolio.usd_balance)}</p>
-              </div>
-              <div>
-                <p className="text-gray-300">BTC Amount</p>
-                <p className="text-2xl font-bold text-orange-400">{portfolio.btc_amount.toFixed(6)} BTC</p>
-              </div>
-              <div>
-                <p className="text-gray-300">Last Trade Price</p>
-                <p className="text-2xl font-bold text-blue-400">{formatCurrency(portfolio.last_trade_price)}</p>
+        {/* Portfolio & Market Data Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Portfolio Status */}
+          {portfolio && (
+            <div className="netflix-card">
+              <h3 className="text-xl font-semibold text-white mb-4">💼 Portfolio Status</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">USD Balance</span>
+                  <span className="text-2xl font-bold text-green-400">{formatCurrency(portfolio.usd_balance)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">BTC Amount</span>
+                  <span className="text-2xl font-bold text-orange-400">{portfolio.btc_amount.toFixed(6)} BTC</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Last Trade Price</span>
+                  <span className="text-2xl font-bold text-blue-400">{formatCurrency(portfolio.last_trade_price)}</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Market Data & Sentiment */}
+          {marketData && (
+            <div className="netflix-card">
+              <h3 className="text-xl font-semibold text-white mb-4">📊 Market Data & Sentiment</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">BTC Price</span>
+                  <span className="text-2xl font-bold text-orange-400">{formatCurrency(marketData.price)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Volume</span>
+                  <span className="text-lg font-bold text-blue-400">{marketData.volume.toFixed(2)}x</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">RSI</span>
+                  <span className="text-lg font-bold text-purple-400">{marketData.rsi.toFixed(1)}</span>
+                </div>
+                <div className="border-t border-gray-700 pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-300">News Sentiment</span>
+                    <span className={`font-bold ${getSentimentColor(marketData.news_sentiment)}`}>
+                      {getSentimentIcon(marketData.news_sentiment)} {marketData.news_sentiment}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Twitter Sentiment</span>
+                    <span className={`font-bold ${getSentimentColor(marketData.twitter_sentiment)}`}>
+                      {getSentimentIcon(marketData.twitter_sentiment)} {marketData.twitter_sentiment}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Live Trade Panel */}
         {liveTrade && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
+          <div className="netflix-card mb-8">
             <h3 className="text-xl font-semibold text-white mb-4">🔥 Latest Trade Decision</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <div className="flex items-center gap-4 mb-4">
-                  <div className={`text-2xl font-bold ${getActionColor(liveTrade.decision)}`}>
-                    {liveTrade.decision}
+                  <div className={`px-4 py-2 rounded-lg border ${getActionBg(liveTrade.decision)}`}>
+                    <span className={`text-2xl font-bold ${getActionColor(liveTrade.decision)}`}>
+                      {liveTrade.decision}
+                    </span>
                   </div>
                   <div className={`text-lg ${getConfidenceColor(liveTrade.confidence)}`}>
                     {(liveTrade.confidence * 100).toFixed(1)}% confidence
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-sm ${liveTrade.is_valid ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                  <div className={`px-3 py-1 rounded-full text-sm ${liveTrade.is_valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                     {liveTrade.is_valid ? '✅ Valid' : '❌ Invalid'}
                   </div>
                 </div>
                 
                 <div className="space-y-3">
-                  <div>
-                    <p className="text-gray-300 text-sm">Price</p>
-                    <p className="text-white font-semibold">{formatCurrency(liveTrade.price)}</p>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Price</span>
+                    <span className="text-white font-semibold">{formatCurrency(liveTrade.price)}</span>
                   </div>
-                  <div>
-                    <p className="text-gray-300 text-sm">Timestamp</p>
-                    <p className="text-white">{formatDate(liveTrade.timestamp)}</p>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Timestamp</span>
+                    <span className="text-white text-sm">{formatDate(liveTrade.timestamp)}</span>
                   </div>
-                  <div>
-                    <p className="text-gray-300 text-sm">P&L</p>
-                    <p className={`font-semibold ${liveTrade.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">P&L</span>
+                    <span className={`font-semibold ${liveTrade.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {formatCurrency(liveTrade.profit_loss || 0)}
-                    </p>
+                    </span>
                   </div>
+                  {liveTrade.news_sentiment && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">News Sentiment</span>
+                      <span className={`font-semibold ${getSentimentColor(liveTrade.news_sentiment)}`}>
+                        {getSentimentIcon(liveTrade.news_sentiment)} {liveTrade.news_sentiment}
+                      </span>
+                    </div>
+                  )}
+                  {liveTrade.twitter_sentiment && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Twitter Sentiment</span>
+                      <span className={`font-semibold ${getSentimentColor(liveTrade.twitter_sentiment)}`}>
+                        {getSentimentIcon(liveTrade.twitter_sentiment)} {liveTrade.twitter_sentiment}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -256,7 +426,7 @@ const TradingDashboard = () => {
 
             {/* Chain of Thought */}
             {liveTrade.chain_of_thought && (
-              <div className="mt-6 border-t border-gray-600 pt-4">
+              <div className="mt-6 border-t border-gray-700 pt-4">
                 <h4 className="text-lg font-semibold text-white mb-3">🔗 Chain of Thought</h4>
                 <div className="space-y-3">
                   <div>
@@ -281,40 +451,20 @@ const TradingDashboard = () => {
           </div>
         )}
 
-        {/* Market Data */}
-        {marketData && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
-            <h3 className="text-xl font-semibold text-white mb-4">📊 Current Market Data</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-gray-300">BTC Price</p>
-                <p className="text-2xl font-bold text-orange-400">{formatCurrency(marketData.price)}</p>
-              </div>
-              <div>
-                <p className="text-gray-300">Volume</p>
-                <p className="text-2xl font-bold text-blue-400">{marketData.volume.toFixed(2)}x</p>
-              </div>
-              <div>
-                <p className="text-gray-300">RSI</p>
-                <p className="text-2xl font-bold text-purple-400">{marketData.rsi}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Trade History */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+        <div className="netflix-card">
           <h3 className="text-xl font-semibold text-white mb-4">📜 Trade History</h3>
           
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-600">
+                <tr className="border-b border-gray-700">
                   <th className="text-left text-gray-300 pb-2">Date</th>
                   <th className="text-left text-gray-300 pb-2">Action</th>
                   <th className="text-left text-gray-300 pb-2">Price</th>
                   <th className="text-left text-gray-300 pb-2">Confidence</th>
                   <th className="text-left text-gray-300 pb-2">P&L</th>
+                  <th className="text-left text-gray-300 pb-2">Sentiment</th>
                   <th className="text-left text-gray-300 pb-2">Valid</th>
                 </tr>
               </thead>
@@ -322,12 +472,14 @@ const TradingDashboard = () => {
                 {tradeHistory.map((trade, index) => (
                   <tr 
                     key={trade.id} 
-                    className="border-b border-gray-700 hover:bg-white/5 cursor-pointer"
+                    className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
                     onClick={() => setSelectedTrade(selectedTrade === trade.id ? null : trade.id)}
                   >
-                    <td className="py-3 text-gray-300">{formatDate(trade.timestamp)}</td>
-                    <td className={`py-3 font-semibold ${getActionColor(trade.decision)}`}>
-                      {trade.decision}
+                    <td className="py-3 text-gray-300 text-xs">{formatDate(trade.timestamp)}</td>
+                    <td className="py-3">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${getActionBg(trade.decision)} ${getActionColor(trade.decision)}`}>
+                        {trade.decision}
+                      </span>
                     </td>
                     <td className="py-3 text-gray-300">{formatCurrency(trade.price)}</td>
                     <td className={`py-3 ${getConfidenceColor(trade.confidence)}`}>
@@ -336,8 +488,22 @@ const TradingDashboard = () => {
                     <td className={`py-3 font-semibold ${trade.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {formatCurrency(trade.profit_loss || 0)}
                     </td>
+                    <td className="py-3 text-xs">
+                      <div className="flex gap-1">
+                        {trade.news_sentiment && (
+                          <span className={`${getSentimentColor(trade.news_sentiment)}`}>
+                            📰{getSentimentIcon(trade.news_sentiment)}
+                          </span>
+                        )}
+                        {trade.twitter_sentiment && (
+                          <span className={`${getSentimentColor(trade.twitter_sentiment)}`}>
+                            🐦{getSentimentIcon(trade.twitter_sentiment)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${trade.is_valid ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                      <span className={`px-2 py-1 rounded-full text-xs ${trade.is_valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                         {trade.is_valid ? 'Valid' : 'Invalid'}
                       </span>
                     </td>
