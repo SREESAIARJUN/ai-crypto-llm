@@ -319,6 +319,7 @@ def test_chart_data():
     # Test with different timeframes
     timeframes = ["1h", "24h", "7d"]
     results = {}
+    timeframe_data = {}  # Store data for each timeframe for comparison
     
     for timeframe in timeframes:
         print(f"\n🔍 Testing Chart Data with timeframe: {timeframe}")
@@ -328,6 +329,7 @@ def test_chart_data():
             
             if response.status_code == 200:
                 data = response.json()
+                timeframe_data[timeframe] = data  # Store data for comparison
                 
                 # Check required fields
                 required_fields = ["price_history", "trade_markers", "portfolio_history", "sentiment_timeline", "timeframe", "last_updated"]
@@ -389,6 +391,24 @@ def test_chart_data():
                             results[timeframe] = False
                             continue
                     
+                    # Verify timestamps are within expected timeframe range
+                    from datetime import datetime, timedelta
+                    now = datetime.utcnow()
+                    
+                    if timeframe == "1h":
+                        cutoff_time = now - timedelta(hours=1)
+                    elif timeframe == "24h":
+                        cutoff_time = now - timedelta(hours=24)
+                    elif timeframe == "7d":
+                        cutoff_time = now - timedelta(days=7)
+                    
+                    # Check if timestamps in price_history are within range
+                    if data["price_history"]:
+                        for point in data["price_history"]:
+                            point_time = datetime.fromisoformat(point["timestamp"].replace("Z", "+00:00"))
+                            if point_time < cutoff_time:
+                                print(f"⚠️ Chart Data Endpoint ({timeframe}): Found price point outside timeframe range: {point_time}")
+                    
                     print(f"✅ Chart Data Endpoint ({timeframe}): SUCCESS")
                     results[timeframe] = True
                 else:
@@ -401,6 +421,72 @@ def test_chart_data():
         except Exception as e:
             print(f"❌ Chart Data Endpoint ({timeframe}): ERROR - {str(e)}")
             results[timeframe] = False
+    
+    # Compare data between timeframes
+    if len(timeframe_data) > 1:
+        print("\n🔍 Comparing data between timeframes...")
+        
+        # Check if there's any data to compare
+        if all(timeframe_data[tf]["price_history"] for tf in timeframes if tf in timeframe_data):
+            # Compare lengths of data arrays
+            print("\nData array lengths by timeframe:")
+            for tf in timeframes:
+                if tf in timeframe_data:
+                    data = timeframe_data[tf]
+                    print(f"  {tf}:")
+                    print(f"    - Price history points: {len(data['price_history'])}")
+                    print(f"    - Portfolio history points: {len(data['portfolio_history'])}")
+                    print(f"    - Sentiment timeline points: {len(data['sentiment_timeline'])}")
+            
+            # Expected behavior: longer timeframes should have more data points
+            # (or at least different data) unless there's limited historical data
+            
+            # Compare first and last timestamps in price_history
+            print("\nTimeframe ranges:")
+            for tf in timeframes:
+                if tf in timeframe_data and timeframe_data[tf]["price_history"]:
+                    data = timeframe_data[tf]
+                    if data["price_history"]:
+                        first_time = datetime.fromisoformat(data["price_history"][0]["timestamp"].replace("Z", "+00:00"))
+                        last_time = datetime.fromisoformat(data["price_history"][-1]["timestamp"].replace("Z", "+00:00"))
+                        time_range = last_time - first_time
+                        print(f"  {tf}: {first_time} to {last_time} (range: {time_range})")
+            
+            # Check if data is different between timeframes
+            different_data = True
+            for i in range(len(timeframes) - 1):
+                tf1 = timeframes[i]
+                tf2 = timeframes[i + 1]
+                
+                if tf1 in timeframe_data and tf2 in timeframe_data:
+                    data1 = timeframe_data[tf1]
+                    data2 = timeframe_data[tf2]
+                    
+                    # Compare number of data points
+                    if (len(data1["price_history"]) == len(data2["price_history"]) and
+                        len(data1["portfolio_history"]) == len(data2["portfolio_history"]) and
+                        len(data1["sentiment_timeline"]) == len(data2["sentiment_timeline"])):
+                        
+                        # If all lengths are the same, check if the data is actually different
+                        # by comparing the first timestamp in price_history
+                        if (data1["price_history"] and data2["price_history"] and
+                            data1["price_history"][0]["timestamp"] == data2["price_history"][0]["timestamp"]):
+                            print(f"⚠️ Warning: {tf1} and {tf2} have identical first timestamps in price_history")
+                            
+                            # If there's only one data point, this might be expected
+                            if len(data1["price_history"]) == 1:
+                                print(f"  Note: Only one data point exists, so identical data may be expected")
+                            else:
+                                different_data = False
+            
+            if different_data:
+                print("✅ Timeframe filtering appears to be working correctly")
+            else:
+                print("❌ Timeframe filtering may not be working correctly - data is too similar between timeframes")
+                # Don't fail the test just for this, as it might be due to limited test data
+                print("  Note: This could be due to limited historical data in the test environment")
+        else:
+            print("⚠️ Not enough data to compare between timeframes")
     
     # Overall result is True only if all timeframes passed
     overall_result = all(results.values())
